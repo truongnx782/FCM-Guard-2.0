@@ -1,0 +1,48 @@
+name: Build FCM Guard APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Install Gradle
+        run: |
+          curl -L -o gradle.zip \
+            https://services.gradle.org/distributions/gradle-8.9-bin.zip
+
+          unzip -q gradle.zip
+
+          echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
+
+      - name: Build APK
+        run: |
+          gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FCM-Guard-2.0.0-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
