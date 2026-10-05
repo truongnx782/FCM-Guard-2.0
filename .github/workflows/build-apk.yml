@@ -17,17 +17,37 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Prepare Android SDK
+      - name: Setup Android SDK
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 
-          sdkmanager \
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -type f \
+            -name sdkmanager \
+            2>/dev/null | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager not found"
+            find "$ANDROID_HOME" -maxdepth 4 -type f -name sdkmanager 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Found sdkmanager: $SDKMANAGER"
+
+          SDKMANAGER_DIR="$(dirname "$SDKMANAGER")"
+          echo "$SDKMANAGER_DIR" >> "$GITHUB_PATH"
+
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+
+          "$SDKMANAGER" \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
       - name: Install Gradle
+        shell: bash
         run: |
           curl -L -o gradle.zip \
             https://services.gradle.org/distributions/gradle-8.9-bin.zip
@@ -37,6 +57,7 @@ jobs:
           echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
 
       - name: Build APK
+        shell: bash
         run: |
           gradle --no-daemon --stacktrace assembleDebug
 
